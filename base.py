@@ -14,7 +14,7 @@ import pymel.core as pm
 # This library is used for node manipulation ---------------
 # ----------------------------------------------------------
 
-def nodeFromAttr(attr):
+def irNodeFromAttr(attr):
     if type(attr).__name__ == 'str':
         return pm.PyNode(attr.split('.')[0])
     else:
@@ -22,7 +22,7 @@ def nodeFromAttr(attr):
             raise AttributeError('Wrong arguments, attr only take pymel Attribute type')
         return attr.node()
 
-def connect2Attrs(attr1,attr2):
+def irConnect2Attrs(attr1,attr2):
     '''
     attr1 either pymel attribute type or number
     attr2 must be pymel attribute
@@ -34,7 +34,7 @@ def connect2Attrs(attr1,attr2):
         #pm.setAttr(attr2,attr1)
         attr2.set(attr1)
 
-class LinearNodesF(object):
+class IRB_LinearNodesF(object):
     '''
     This class take in a list of pymel attributes type (Float) then provide various method to connect them into a arithmetic network
     '''
@@ -102,7 +102,7 @@ class LinearNodesF(object):
             pma = pm.shadingNode('plusMinusAverage',n=nodeName,asUtility=True)
         
         for x in range(0,len(self.args)):
-            connect2Attrs(self.args[x],pma.input1D[x])
+            irConnect2Attrs(self.args[x],pma.input1D[x])
             #self.args[x] >> pma.input1D[x]
         pma.operation.set(operation)
         return pma.output1D
@@ -128,10 +128,10 @@ class LinearNodesF(object):
         
         for x in range(0,len(self.args)):
             if slot == 'x':
-                connect2Attrs(self.args[x],pma.input2D[x].input2Dx)
+                irConnect2Attrs(self.args[x],pma.input2D[x].input2Dx)
                 #self.args[x] >> pma.input2D[x].input2Dx
             else:
-                connect2Attrs(self.args[x],pma.input2D[x].input2Dy)
+                irConnect2Attrs(self.args[x],pma.input2D[x].input2Dy)
                 #self.args[x] >> pma.input2D[x].input2Dy
 
         pma.operation.set(operation)
@@ -160,13 +160,13 @@ class LinearNodesF(object):
         
         for x in range(0,len(self.args)):
             if slot == 'x':
-                connect2Attrs(self.args[x],pma.input3D[x].input3Dx)
+                irConnect2Attrs(self.args[x],pma.input3D[x].input3Dx)
                 #self.args[x] >> pma.input3D[x].input3Dx
             elif slot == 'y':
-                connect2Attrs(self.args[x],pma.input3D[x].input3Dy)
+                irConnect2Attrs(self.args[x],pma.input3D[x].input3Dy)
                 #self.args[x] >> pma.input3D[x].input3Dy
             else:
-                connect2Attrs(self.args[x],pma.input3D[x].input3Dz)
+                irConnect2Attrs(self.args[x],pma.input3D[x].input3Dz)
                 #self.args[x] >> pma.input3D[x].input3Dz
 
         pma.operation.set(operation)
@@ -195,22 +195,22 @@ class LinearNodesF(object):
             for x in range(1,argsCount):
                 md = pm.shadingNode('multiplyDivide',n=(nodeName+str(x).zfill(2)),asUtility=True)
                 md.operation.set(operation)
-                connect2Attrs(out,md.input1X)
-                connect2Attrs(self.args[x],md.input2X)
+                irConnect2Attrs(out,md.input1X)
+                irConnect2Attrs(self.args[x],md.input2X)
                 out = md.outputX 
         elif slot == 'y':
             for x in range(1,argsCount):
                 md = pm.shadingNode('multiplyDivide',n=(nodeName+str(x).zfill(2)),asUtility=True)
                 md.operation.set(operation)
-                connect2Attrs(out,md.input1Y)
-                connect2Attrs(self.args[x],md.input2Y)
+                irConnect2Attrs(out,md.input1Y)
+                irConnect2Attrs(self.args[x],md.input2Y)
                 out = md.outputY
         else:
             for x in range(1,argsCount):
                 md = pm.shadingNode('multiplyDivide',n=(nodeName+str(x).zfill(2)),asUtility=True)
                 md.operation.set(operation)
-                connect2Attrs(out,md.input1Z)
-                connect2Attrs(self.args[x],md.input2Z)
+                irConnect2Attrs(out,md.input1Z)
+                irConnect2Attrs(self.args[x],md.input2Z)
                 out = md.outputZ 
 
         return out
@@ -312,8 +312,8 @@ class LinearNodesF(object):
         out = self.args[0]
         for x in range(1,argsCount):
             mult = pm.shadingNode('multDoubleLinear',n=(nodeName+str(x).zfill(2)),asUtility=True)
-            connect2Attrs(out,mult.input1)
-            connect2Attrs(self.args[x],mult.input2)
+            irConnect2Attrs(out,mult.input1)
+            irConnect2Attrs(self.args[x],mult.input2)
             out = mult.output 
 
         return out
@@ -336,7 +336,7 @@ class LinearNodesF(object):
         '''
         return self._multiplyDivideBase(slot,3)
 
-    def arithExpr(self,expStr,argList = self.args):
+    def arithExpr(self):
         '''
         This method take in a string represent a linear arithmetic
         return the result
@@ -345,61 +345,6 @@ class LinearNodesF(object):
         ((@0 + @1 + @4) * @2/@3)+@5
         argList = [5,6,7,8,9,10]
         '''
-        #step1 - remove space
-        expStr = expStr.replace(' ','')
-        expStrList = list(expStr)
-        expStrLen = len(expStr)
-        #step2 - reorganize
-        def _reorganize(expStr,argList):
-            orderedArgs = []
-            orderedStr = ''
-            orderedCount = 0
-            for x in range(0,expStrLen):
-                char = expStrList[x]
-            
-                if char == '@':
-                    orderedStr += '#'
-                    realNum = ''
-                    for tmp in range(x+1,expStrLen):                   
-                        try:
-                            num = int(expStrList[tmp])
-                            realNum += expStrList[tmp]
-                            expStrList[tmp] = '$'
-                        except ValueError:
-                            break
-                    realNumValue = int(realNum)
-                    orderedArgs.append(argList[realNumValue])
-                    orderedStr += str(orderedCount)
-                    orderedCount += 1
-                else:
-                    orderedStr += expStrList[x]
-                    
-            orderedStr = orderedStr.replace('$','')
-            return orderedStr
-        orderedStr = _reorganize(expStr,argList)
-        orderedStrLen = len(orderedStr)
-    
-        #getStr in brackets
-        '''
-        openCount = len([x for x in orderedStr if x == '('])
-        closeCount = len([x for x in orderedStr if x == ')'])
-        if openCount != closeCount:
-            raise ValueError('open brackets does not match close brackets')
-    
-        subStrList = []
-        for x in range(0,openCount):
-            tmpStr = ''
-            for ri in range(-1,(orderedStrLen*-1-1),-1):
-                char = orderedStr[ri]
-                if char == '(':#start counting forward
-                    for fi in range((orderedStrLen+ri),orderedStrLen):
-                        tmpStr += orderedStr[fi]
-                        if orderedStr[fi] == ')':
-                            break
-                    break 
-            subStrList.append(tmpStr)
-        '''
-
-        
+        pass
         
 
