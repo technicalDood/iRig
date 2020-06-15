@@ -1,0 +1,1 @@
+this location stores all json templates for the tools
